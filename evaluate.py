@@ -42,6 +42,8 @@ parser.add_argument('--test-data-path', required=True)
 parser.add_argument('--normalize-data', action='store_true', help='Apply sigmoid function to each value in the data')
 parser.add_argument('--disable-cuda', action='store_true', help='Disable CUDA')
 parser.add_argument('--downstream-task', default="classification", help='classification | regression')
+parser.add_argument('--save-models', action='store_true', help='Save the trained models into a pickle file (only for PATE-GANs)')
+parser.add_argument('--output-model-name', help='Name for the saved models')
 
 privacy_parser = argparse.ArgumentParser(add_help=False)
 
@@ -139,9 +141,20 @@ if opt.model == 'pate-gan':
     Hyperparams.__new__.__defaults__ = (None, None, None, None, None, None, None)
 
     model = pate_gan.PATE_GAN(input_dim, z_dim, opt.num_teachers, opt.target_epsilon, opt.target_delta, conditional)
-    model.train(X_train, y_train, Hyperparams(batch_size=opt.batch_size, num_teacher_iters=opt.teacher_iters,
+
+    load_model = False
+    if opt.output_model_name is not None:
+        if model.check_saved(opt.output_model_name):
+            load_model = True
+
+
+    if load_model:
+        model.load(opt.output_model_name)
+    
+    else:
+        model.train(X_train, y_train, Hyperparams(batch_size=opt.batch_size, num_teacher_iters=opt.teacher_iters,
                                               num_student_iters=opt.student_iters, num_moments=opt.num_moments,
-                                              lap_scale=opt.lap_scale, class_ratios=class_ratios, lr=1e-4))
+                                              lap_scale=opt.lap_scale, class_ratios=class_ratios, lr=1e-4), opt.save_models, opt.output_model_name)
 
 elif opt.model == 'dp-wgan':
     Hyperparams = collections.namedtuple(

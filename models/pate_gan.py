@@ -19,6 +19,7 @@ import torch.optim as optim
 import torch.utils.data as data_utils
 import numpy as np
 import math
+import os
 from utils.architectures import Generator, Discriminator
 from utils.helper import weights_init, pate, moments_acc
 
@@ -40,7 +41,7 @@ class PATE_GAN:
         self.target_delta = target_delta
         self.conditional = conditional
 
-    def train(self, x_train, y_train, hyperparams):
+    def train(self, x_train, y_train, hyperparams, save_models, filename="pate-gan"):
         batch_size = hyperparams.batch_size
         num_teacher_iters = hyperparams.num_teacher_iters
         num_student_iters = hyperparams.num_student_iters
@@ -163,6 +164,13 @@ class PATE_GAN:
 
             steps += 1
 
+        if save_models:
+            self.save(self.generator, ("saved_models/" + filename + "_generator.pt"))
+            self.save(self.student_disc, ("saved_models/" + filename + "_student.pt"))
+            for teacher in range(0, self.num_teachers):
+                self.save(self.teacher_disc[teacher], ("saved_models/" + filename + "_teacher" + str(teacher) + ".pt"))
+
+
     def generate(self, num_rows, class_ratios, batch_size=1000):
         steps = num_rows // batch_size
         synthetic_data = []
@@ -193,3 +201,25 @@ class PATE_GAN:
             synthetic_data.append(synthetic.cpu().data.numpy())
 
         return np.concatenate(synthetic_data)
+
+    def save(self, model, filename):
+        torch.save(model, filename)
+
+    def load(self, filename):
+        self.generator = torch.load("saved_models/" + filename + "_generator.pt")
+        self.student_disc = torch.load("saved_models/" + filename + "_student.pt")
+        for teacher in range(0, self.num_teachers):
+                self.teacher_disc[teacher] = torch.load("saved_models/" + filename + "_teacher" + str(teacher) + ".pt")
+    
+    def check_saved(self, filename):
+        saved_models = os.listdir("saved_models/")
+
+        if (filename + "_generator.pt") not in saved_models:
+            return False
+        if (filename + "_student.pt") not in saved_models:
+            return False
+        for teacher in range(0, self.num_teachers):
+            if (filename + "_teacher" + str(teacher) + ".pt") not in saved_models:
+                return False
+        return True
+

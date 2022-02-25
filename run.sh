@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES=2 python evaluate.py --target-variable='income' --train-data-path=./data/adult_processed_train.csv --test-data-path=./data/adult_processed_test.csv --normalize-data --save-models --output-model-name='pate-gan' pate-gan --enable-privacy --target-epsilon=8 
