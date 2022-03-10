@@ -29,6 +29,7 @@ import numpy as np
 import pandas as pd
 import collections
 import os
+import pickle
 try:
     from models.IMLE import imle
 except ImportError as error:
@@ -42,6 +43,8 @@ parser.add_argument('--test-data-path', required=True)
 parser.add_argument('--normalize-data', action='store_true', help='Apply sigmoid function to each value in the data')
 parser.add_argument('--disable-cuda', action='store_true', help='Disable CUDA')
 parser.add_argument('--downstream-task', default="classification", help='classification | regression')
+parser.add_argument('--save-model', action='store_true', help='Save the trained models into a pickle file (only for PATE-GANs)')
+parser.add_argument('--model-name', help='Name for the saving/loading models')
 
 privacy_parser = argparse.ArgumentParser(add_help=False)
 
@@ -138,10 +141,38 @@ if opt.model == 'pate-gan':
         'batch_size num_teacher_iters num_student_iters num_moments lap_scale class_ratios lr')
     Hyperparams.__new__.__defaults__ = (None, None, None, None, None, None, None)
 
-    model = pate_gan.PATE_GAN(input_dim, z_dim, opt.num_teachers, opt.target_epsilon, opt.target_delta, conditional)
-    model.train(X_train, y_train, Hyperparams(batch_size=opt.batch_size, num_teacher_iters=opt.teacher_iters,
-                                              num_student_iters=opt.student_iters, num_moments=opt.num_moments,
-                                              lap_scale=opt.lap_scale, class_ratios=class_ratios, lr=1e-4))
+    load_model = False
+    model_filename = "saved_models/" + opt.model_name + ".pickle"
+
+    # If the model_name argument has been given
+    if opt.model_name is not None:
+        # Check the saved_models directory
+        saved_models = os.listdir("saved_models/")
+        # If there is a model in there with the model_name
+        if (opt.model_name + ".pickle") in saved_models:
+            # Model can be loaded
+            load_model = True
+
+    # If model can be loaded
+    if load_model:
+        #Load the modle
+        with open(model_filename,"rb") as f:
+            model = pickle.load(f)
+        print("loaded model")
+
+    else:
+        model = pate_gan.PATE_GAN(input_dim, z_dim, opt.num_teachers, opt.target_epsilon, opt.target_delta, conditional)
+        model.train(X_train, y_train, Hyperparams(batch_size=opt.batch_size, num_teacher_iters=opt.teacher_iters,
+                                                  num_student_iters=opt.student_iters, num_moments=opt.num_moments,
+                                                  lap_scale=opt.lap_scale, class_ratios=class_ratios, lr=1e-4))
+
+    # If the save_model option was given and the model can't be loaded
+    if opt.save_model and not load_model:
+        print("saving model")
+        # Save the model
+        with open(model_filename,"wb") as f:
+            pickle.dump(model, f)
+
 
 elif opt.model == 'dp-wgan':
     Hyperparams = collections.namedtuple(
